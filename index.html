@@ -1819,9 +1819,11 @@ document.getElementById('monedaRegistro').value = (state.displayCurrency === 'EU
 actualizarTodo();
 mostrarSeccion('capital');
 
-if ("serviceWorker" in navigator) {
-  navigator.serviceWorker.register("./sw.js");
-}
+<script>
+  if ("serviceWorker" in navigator) {
+    navigator.serviceWorker.register("./sw.js");
+  }
+</script>
 </script>
 </body>
 </html>
