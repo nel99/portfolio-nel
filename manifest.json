@@ -1,0 +1,9 @@
+{
+  "name": "Portfolio Nel",
+  "short_name": "Nel",
+  "start_url": "./Portfolio.html",
+  "scope": "./",
+  "display": "standalone",
+  "background_color": "#000000",
+  "theme_color": "#000000"
+}
