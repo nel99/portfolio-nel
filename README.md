@@ -109,3 +109,7 @@ Consulta el repositorio para más detalles.
 ![Home](screenshots/home.jpg)
 ![Gráfico](screenshots/grafico.jpg)
 ![health](screenshots/health.jpg)
+
+<img src="screenshots/home.jpg" width="280">
+<img src="screenshots/grafico.jpg" width="280">
+<img src="screenshots/health.jpg" width="280">
