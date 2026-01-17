@@ -103,9 +103,3 @@ Si te resulta útil y quieres aportar mejoras, no dudes en comentarlo.
 
 Proyecto personal de uso libre.  
 Consulta el repositorio para más detalles.
-
-## 📱 Capturas
-
-![Pantalla principal](screenshots/home.jpg)
-![Gráfico](screenshots/grafico.jpg)
-![Health](screenshots/health.jpg)
