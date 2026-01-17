@@ -107,3 +107,5 @@ Consulta el repositorio para más detalles.
 
 ### Pantalla principal
 ![Home](screenshots/home.jpg)
+![Gráfico](screenshots/grafico.jpg)
+![health](screenshots/health.jpg)
