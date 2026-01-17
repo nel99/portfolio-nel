@@ -619,6 +619,22 @@
       border:1px solid rgba(0,0,0,.12);
       background:rgba(255,255,255,.82);
     }
+  .kpi-grid{
+  display:grid;
+  grid-template-columns:repeat(2,minmax(0,1fr));
+  gap:10px;
+}
+.kpi{
+  border:1px solid var(--border);
+  border-radius:16px;
+  padding:12px;
+  background:rgba(255,255,255,.03);
+}
+[data-theme="light"] .kpi{ background:rgba(0,0,0,.02); }
+.kpi .t{ color:var(--muted); font-weight:900; font-size:.82rem; margin-bottom:6px; text-transform:uppercase; }
+.kpi .v{ font-weight:950; color:var(--yellow); font-size:1.02rem; }
+.kpi .s{ margin-top:6px; color:var(--muted); font-size:.86rem; line-height:1.25; }
+.sep{ height:10px; }
   </style>
 </head>
 
@@ -819,6 +835,13 @@
       </div>
     </div>
 
+    <div class="section" id="historico">
+  <div class="section-header">health</div>
+  <div class="section-content">
+    <div id="hist-box"></div>
+    </div>
+  </div>
+  
     <div class="section" id="mensual">
       <div class="section-header">Mensual</div>
       <div class="section-content">
@@ -826,6 +849,7 @@
       </div>
     </div>
   </main>
+  
 
   <div class="bottom-nav" id="nav">
     <button type="button" data-section="capital" class="active"><span class="icon">💰</span>Capital</button>
@@ -833,6 +857,7 @@
     <button type="button" data-section="grafico"><span class="icon">📈</span>Gráfico</button>
     <button type="button" data-section="lista"><span class="icon">📋</span>Lista</button>
     <button type="button" data-section="anual"><span class="icon">📊</span>Anual</button>
+    <button type="button" data-section="historico"><span class="icon">🗂️</span>Health</button>
     <button type="button" data-section="mensual"><span class="icon">🗓️</span>Mensual</button>
   </div>
 
@@ -1123,6 +1148,7 @@ function mostrarSeccion(id){
 
   if(id==='grafico') setTimeout(actualizarGrafica, 60);
   if(id==='anual') setTimeout(actualizarGraficoAnual, 60);
+  
 }
 
 function filteredRegistros(){
@@ -1550,8 +1576,212 @@ async function importJSON(file){
     document.getElementById('importJson').value = '';
   }
 }
+function calcularHistoricoIntelixente(){
+  const regs = state.registros.slice().sort((a,b)=> (a.fecha||'').localeCompare(b.fecha||''));
+  const cap = Number(state.capital)||0;
 
-function actualizarTodo(){
+  const out = {
+    count: regs.length,
+    posDays: 0,
+    negDays: 0,
+    zeroDays: 0,
+    best: null,
+    worst: null,
+    avg: 0,
+    std: 0,
+    streakPosMax: 0,
+    streakNegMax: 0,
+    streakCurType: 'none', // 'pos'|'neg'|'none'
+    streakCurLen: 0,
+    maxDDAbs: 0,   // negativo o 0, en CHF (equity - peak)
+    maxDDPct: 0,   // negativo o 0, sobre peak
+    ddPeakDate: null,
+    ddTroughDate: null
+  };
+
+  if(!regs.length) return out;
+
+  // Best / Worst + counts + avg
+  let sum = 0;
+  out.best = regs[0];
+  out.worst = regs[0];
+
+  for(const r of regs){
+    const g = Number(r.ganancia)||0;
+    sum += g;
+
+    if(g > (Number(out.best.ganancia)||0)) out.best = r;
+    if(g < (Number(out.worst.ganancia)||0)) out.worst = r;
+
+    if(g > 0) out.posDays++;
+    else if(g < 0) out.negDays++;
+    else out.zeroDays++;
+  }
+  out.avg = sum / regs.length;
+
+  // Std dev (volatilidad simple)
+  let varSum = 0;
+  for(const r of regs){
+    const g = Number(r.ganancia)||0;
+    const d = g - out.avg;
+    varSum += d*d;
+  }
+  out.std = Math.sqrt(varSum / regs.length);
+
+  // Streaks
+  let curType = 'none';
+  let curLen = 0;
+
+  for(const r of regs){
+    const g = Number(r.ganancia)||0;
+    const type = g>0 ? 'pos' : (g<0 ? 'neg' : 'none');
+
+    if(type==='none'){
+      curType='none'; curLen=0;
+      continue;
+    }
+
+    if(type === curType){
+      curLen++;
+    }else{
+      curType = type;
+      curLen = 1;
+    }
+
+    if(curType==='pos') out.streakPosMax = Math.max(out.streakPosMax, curLen);
+    if(curType==='neg') out.streakNegMax = Math.max(out.streakNegMax, curLen);
+  }
+
+  // Current streak (desde el final)
+  {
+    let t='none', len=0;
+    for(let i=regs.length-1;i>=0;i--){
+      const g = Number(regs[i].ganancia)||0;
+      const type = g>0 ? 'pos' : (g<0 ? 'neg' : 'none');
+      if(type==='none') break;
+      if(t==='none'){ t=type; len=1; }
+      else if(type===t){ len++; }
+      else break;
+    }
+    out.streakCurType = t;
+    out.streakCurLen = len;
+  }
+
+  // Max Drawdown (sobre equity = capital + acumulado)
+  // Nota: si capital=0, usamos equity acumulada igual, pero % puede ser raro.
+  let equity = cap;
+  let peak = equity;
+  let peakDate = regs[0].fecha || null;
+
+  let maxDD = 0; // negativo
+  let ddPeakDate = peakDate;
+  let ddTroughDate = peakDate;
+
+  let runningGain = 0;
+  for(const r of regs){
+    runningGain += Number(r.ganancia)||0;
+    equity = cap + runningGain;
+
+    if(equity > peak){
+      peak = equity;
+      peakDate = r.fecha || peakDate;
+    }
+
+    const dd = equity - peak; // <= 0
+    if(dd < maxDD){
+      maxDD = dd;
+      ddPeakDate = peakDate;
+      ddTroughDate = r.fecha || ddTroughDate;
+    }
+  }
+
+  out.maxDDAbs = maxDD; // negativo
+  out.ddPeakDate = ddPeakDate;
+  out.ddTroughDate = ddTroughDate;
+
+  if(peak > 0){
+    out.maxDDPct = (maxDD / peak) * 100; // negativo
+  }else{
+    out.maxDDPct = 0;
+  }
+
+  return out;
+}
+
+function renderHistoricoUI(){
+  const box = document.getElementById('hist-box');
+  if(!box) return;
+
+  const h = calcularHistoricoIntelixente();
+
+  if(h.count === 0){
+    box.innerHTML = `<p style="color:var(--muted);text-align:center;padding:10px 0;">Aún no hay datos</p>`;
+    return;
+  }
+
+  const bestCls = (Number(h.best.ganancia)||0) >= 0 ? 'positivo' : 'negativo';
+  const worstCls = (Number(h.worst.ganancia)||0) >= 0 ? 'positivo' : 'negativo';
+
+  const curTxt = (h.streakCurType==='pos')
+    ? `Racha actual: <b class="positivo">${h.streakCurLen} día(s) en positivo</b>`
+    : (h.streakCurType==='neg')
+      ? `Racha actual: <b class="negativo">${h.streakCurLen} día(s) en negativo</b>`
+      : `Racha actual: <b>—</b>`;
+
+  const ddTxt = (h.maxDDAbs < 0)
+    ? `Max drawdown: <b class="negativo">${formatMoneyFromCHF(h.maxDDAbs)}</b> (${h.maxDDPct.toFixed(2)}%)<br>
+       Pico: <b>${h.ddPeakDate || '—'}</b> → Fondo: <b>${h.ddTroughDate || '—'}</b>`
+    : `Max drawdown: <b>0,00</b>`;
+
+  box.innerHTML = `
+    <div class="kpi-grid">
+      <div class="kpi">
+        <div class="t">Registros</div>
+        <div class="v">${h.count}</div>
+        <div class="s">
+          Verdes: <b class="positivo">${h.posDays}</b> ·
+          Rojos: <b class="negativo">${h.negDays}</b> ·
+          0: <b>${h.zeroDays}</b>
+        </div>
+      </div>
+
+      <div class="kpi">
+        <div class="t">Media diaria</div>
+        <div class="v">${formatMoneyFromCHF(h.avg)}</div>
+        <div class="s">Volatilidad (σ): <b>${formatMoneyFromCHF(h.std)}</b></div>
+      </div>
+    </div>
+
+    <div class="sep"></div>
+
+    <div class="kpi">
+      <div class="t">Mejor / Peor día</div>
+      <div class="s">
+        Mejor: <b>${h.best.fecha}</b> · <b class="${bestCls}">${formatMoneyFromCHF(h.best.ganancia)}</b><br>
+        Peor: <b>${h.worst.fecha}</b> · <b class="${worstCls}">${formatMoneyFromCHF(h.worst.ganancia)}</b>
+      </div>
+    </div>
+
+    <div class="sep"></div>
+
+    <div class="kpi">
+      <div class="t">Rachas</div>
+      <div class="s">
+        Máx racha positiva: <b class="positivo">${h.streakPosMax}</b> día(s)<br>
+        Máx racha negativa: <b class="negativo">${h.streakNegMax}</b> día(s)<br>
+        ${curTxt}
+      </div>
+    </div>
+
+    <div class="sep"></div>
+
+    <div class="kpi">
+      <div class="t">Riesgo</div>
+      <div class="s">${ddTxt}</div>
+    </div>
+  `;
+}
+function actualizarTodo(){renderHistoricoUI();
   const totalGan = calcularGanancias();
   const total = (Number(state.capital)||0) + totalGan;
   const rent = calcularRentabilidad();
