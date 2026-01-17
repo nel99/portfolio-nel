@@ -1,14 +1,13 @@
 <!DOCTYPE html>
 <html lang="es">
 <head>
-  <link rel="manifest" href="/portfolio-nel/manifest.json">
-  <meta name="theme-color" content="#000000">
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no" />
+  <meta name="theme-color" content="#000000" />
+  <link rel="manifest" href="/portfolio-nel/manifest.json" />
   <title>Ganancias Nel</title>
   <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
-</head>
-
+  
   <style>
     :root{
       --bg:#000;
@@ -1818,12 +1817,15 @@ document.getElementById('monedaRegistro').value = (state.displayCurrency === 'EU
 
 actualizarTodo();
 mostrarSeccion('capital');
+</script>
+
 <script>
   if ("serviceWorker" in navigator) {
-    navigator.serviceWorker.register("/portfolio-nel/sw.js");
+    window.addEventListener("load", () => {
+      navigator.serviceWorker.register("/portfolio-nel/sw.js");
+    });
   }
 </script>
-</script>
-</script>
+  
 </body>
 </html>
