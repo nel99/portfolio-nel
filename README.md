@@ -106,10 +106,6 @@ Consulta el repositorio para más detalles.
 ## 📱 Capturas
 
 ### Pantalla principal
-![Home](screenshots/home.jpg)
-![Gráfico](screenshots/grafico.jpg)
-![health](screenshots/health.jpg)
-
-<img src="screenshots/home.jpg" width="280">
-<img src="screenshots/grafico.jpg" width="280">
-<img src="screenshots/health.jpg" width="280">
+<img src="screenshots/home.jpg" width="180">
+<img src="screenshots/grafico.jpg" width="180">
+<img src="screenshots/health.jpg" width="180">
