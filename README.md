@@ -106,6 +106,6 @@ Consulta el repositorio para más detalles.
 
 ## 📱 Capturas
 
-![Pantalla principal](screenshots/home.png)
-![Gráfico](screenshots/grafico.png)
-![Health](screenshots/health.png)
+![Pantalla principal](screenshots/home.jpg)
+![Gráfico](screenshots/grafico.jpg)
+![Health](screenshots/health.jpg)
